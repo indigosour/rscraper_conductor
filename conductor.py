@@ -4,6 +4,8 @@ from common import *
 from peertube import *
 from database import *
 
+logging.basicConfig(filename='log.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
+
 app = Flask(__name__)
 
 def send_message_work(dlBatch, metadata):

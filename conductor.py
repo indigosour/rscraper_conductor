@@ -55,7 +55,10 @@ def queue_dl_period(period, batch_size=100):
             "p_id": p_id,
             "version": "1.0"
         }
-        send_message_work(batch,metadata)
+        try: 
+            send_message_work(batch,metadata)
+        except Exception as e:
+            print(f"Error sending message: {e}")
 
     print(f'Sent {len(batches)} messages to worker queue.')
 

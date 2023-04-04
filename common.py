@@ -28,7 +28,7 @@ def cleanString(sourcestring):
 
 def get_az_secret(key_name):
     try:
-            az_tenant_id = os.getenv('AZURE_TENANT_ID')
+        az_tenant_id = os.getenv('AZURE_TENANT_ID')
         az_client_id = os.getenv('AZURE_CLIENT_ID')
         az_client_secret = os.getenv('AZURE_CLIENT_SECRET')
 

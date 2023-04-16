@@ -1,5 +1,7 @@
-import json,pika,datetime
+import json,pika,datetime,sched,time,logging,datetime
 from flask import Flask, request, jsonify
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 from common import *
 from peertube import *
 from database import *
@@ -8,8 +10,9 @@ logging.basicConfig(filename='log.log', encoding='utf-8', format='%(asctime)s %(
 
 app = Flask(__name__)
 
-def send_message_work(dlBatch, metadata):
+s = sched.scheduler(time.time, time.sleep)
 
+def send_message_work(dlBatch, metadata):
     # Set up RabbitMQ connection and channel
     mq_cred = pika.PlainCredentials(get_az_secret('RMQ-CRED')['username'],get_az_secret('RMQ-CRED')['password'])
     connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq',credentials=mq_cred))
@@ -36,7 +39,7 @@ def send_message_work(dlBatch, metadata):
 
 
 def queue_dl_period(period, batch_size=100):
-    today = datetime.today().strftime('%m-%d-%Y')
+    today = datetime.now().strftime('%m-%d-%Y')
     peertube_auth()
     p_title = f'Top of the {period} for all subs as of {today}'
     p_id = create_playlist(p_title, 2)
@@ -63,6 +66,29 @@ def queue_dl_period(period, batch_size=100):
     print(f'Sent {len(batches)} messages to worker queue.')
 
 
+def process_subreddit_update():
+    sublist = load_sublist()
+
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(store_reddit_posts, sub) for sub in sublist]
+
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
+
+    print("Completed updating database with all posts from all tracked subreddits")
+
+
+@app.route('/process_update', methods=['POST'])
+def api_process_update():
+    try:
+        process_subreddit_update()
+        logging.info(f"Updating subreddits with new posts...")
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        logging.error(f"Error updating subreddits with new posts...")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/queue_dl_period', methods=['POST'])
 def api_queue_dl_period():
     data = request.get_json()
@@ -74,9 +100,11 @@ def api_queue_dl_period():
 
     try:
         queue_dl_period(period, batch_size)
-        return jsonify({'status': 'success'})
+        logging.info(f"Queueing post download for period {period}")
+        return jsonify({'status': 'success', 'message': f'Queued post download for period {period}'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)

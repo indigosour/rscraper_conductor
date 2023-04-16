@@ -1,4 +1,4 @@
-import json, pika, datetime, sched, time, logging, datetime
+import json, pika, datetime, sched, time, logging, datetime, sys
 from fastapi import FastAPI, Request
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
@@ -6,8 +6,14 @@ from common import *
 from peertube import *
 from database import *
 
-logging.basicConfig(filename='log.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
-
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.StreamHandler(sys.stderr)
+    ]
+)
 app = FastAPI()
 
 s = sched.scheduler(time.time, time.sleep)

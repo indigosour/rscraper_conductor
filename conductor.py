@@ -46,7 +46,12 @@ def send_message_work(dlBatch, metadata):
 
 def queue_dl_period(period, batch_size=100):
     today = datetime.now().strftime('%m-%d-%Y')
-    peertube_auth()
+    try:
+        peertube_auth()
+    except Exception as e:
+        print(f"Error authenticating with Peertube: {e}")
+        logging.error(f"Error authenticating with Peertube: {e}")
+        sys.exit(1)
     p_title = f'Top of the {period} for all subs as of {today}'
     p_id = create_playlist(p_title, 2)
     dlList = get_dl_list_period(period)

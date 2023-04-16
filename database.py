@@ -1,11 +1,9 @@
 from sqlalchemy import create_engine,Column,Integer,String,Boolean,DateTime,DECIMAL,text
 from sqlalchemy.orm import sessionmaker
 import sqlalchemy.orm
-from sqlalchemy.exc import IntegrityError, DataError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, DataError
 import logging,datetime
 from datetime import timedelta, datetime
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
 from common import *
 
 db_name = 'reddit_scraper'
@@ -106,3 +104,64 @@ def get_dl_list_period(period):
         logging.error("get_dl_list_period: Error reading data from table", e)
     finally:
         session.close()
+
+
+def store_reddit_posts(sub):
+    session = create_sqlalchemy_session()
+    logging.info(f"store_reddit_posts: Storing reddit posts...")
+    sub_entrycount = 0
+    
+    for period in ["day","week","month","year","all"]:
+        period_entrycount = 0
+        posts = get_reddit_posts(sub,period)
+        for i in posts:
+            if i.author != None and i.is_video == True:
+                post = Post(
+                    post_id=i.id,
+                    title=cleanString(i.title)[:500],
+                    author=i.author.name,
+                    subreddit=i.subreddit,
+                    score=i.score,
+                    upvote_ratio=i.upvote_ratio,
+                    num_comments=i.num_comments,
+                    created_utc=datetime.fromtimestamp(int(i.created_utc)),
+                    is_original_content=i.is_original_content,
+                    over_18=i.over_18,
+                    permalink="https://reddit.com" + i.permalink,
+                    last_updated=datetime.now()
+                )
+
+                try:
+                    session.execute(
+                        text("""
+                            INSERT INTO posts (post_id, title, author, subreddit, score, upvote_ratio, num_comments, created_utc, is_original_content, over_18, permalink, last_updated)
+                            VALUES (:post_id, :title, :author, :subreddit, :score, :upvote_ratio, :num_comments, :created_utc, :is_original_content, :over_18, :permalink, :last_updated)
+                        """),
+                        {
+                            "post_id": post.post_id,
+                            "title": post.title,
+                            "author": post.author,
+                            "subreddit": post.subreddit,
+                            "score": post.score,
+                            "upvote_ratio": post.upvote_ratio,
+                            "num_comments": post.num_comments,
+                            "created_utc": post.created_utc,
+                            "is_original_content": post.is_original_content,
+                            "over_18": post.over_18,
+                            "permalink": post.permalink,
+                            "last_updated": post.last_updated
+                        }
+                    )
+                    session.commit()
+                    period_entrycount += 1
+                    sub_entrycount += 1
+                except (IntegrityError, DataError):
+                    session.rollback()
+                    continue
+
+        print(f"Successfully added {period_entrycount} entries for {sub} to the database for the period {period}")
+        logging.info(f"Successfully added {period_entrycount} entries for {sub} to the database for the period {period}")
+        
+    session.close()
+    logging.info(f"store_reddit_posts: Successfully added {sub_entrycount} entries for {sub} to the database")
+    return print(f"Successfully added {sub_entrycount} entries for {sub} to the database")

@@ -26,7 +26,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
-          context: ./rscraper_conductor
+          context: .
           push: true
           tags: |
             ghcr.io/indigosour/rscraper_conductor:1.0.${{ github.run_number }}

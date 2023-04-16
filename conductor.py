@@ -1,5 +1,5 @@
-import json,pika,datetime,sched,time,logging,datetime
-from flask import Flask, request, jsonify
+import json, pika, datetime, sched, time, logging, datetime
+from fastapi import FastAPI, Request
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 from common import *
@@ -8,7 +8,7 @@ from database import *
 
 logging.basicConfig(filename='log.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-app = Flask(__name__)
+app = FastAPI()
 
 s = sched.scheduler(time.time, time.sleep)
 
@@ -78,33 +78,34 @@ def process_subreddit_update():
     print("Completed updating database with all posts from all tracked subreddits")
 
 
-@app.route('/process_update', methods=['POST'])
-def api_process_update():
+@app.post('/process_update')
+async def api_process_update(request: Request):
     try:
         process_subreddit_update()
         logging.info(f"Updating subreddits with new posts...")
-        return jsonify({'status': 'success'})
+        return {'status': 'success'}
     except Exception as e:
         logging.error(f"Error updating subreddits with new posts...")
-        return jsonify({'error': str(e)}), 500
+        return {'error': str(e)}, 500
 
 
-@app.route('/queue_dl_period', methods=['POST'])
-def api_queue_dl_period():
-    data = request.get_json()
+@app.post('/queue_dl_period')
+async def api_queue_dl_period(request: Request):
+    data = await request.json()
     period = data.get('period', None)
     batch_size = data.get('batch_size', 100)
 
     if not period:
-        return jsonify({'error': 'Please provide a period value'}), 400
+        return {'error': 'Please provide a period value'}, 400
 
     try:
         queue_dl_period(period, batch_size)
         logging.info(f"Queueing post download for period {period}")
-        return jsonify({'status': 'success', 'message': f'Queued post download for period {period}'})
+        return {'status': 'success', 'message': f'Queued post download for period {period}'}
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return {'error': str(e)}, 500
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=5000)

@@ -7,7 +7,7 @@ resources:
   - repo: self
 
 variables:
-  IMAGE_TAG: 'indigosour/rscraper_worker:1.0.$(Build.BuildId)'
+  IMAGE_TAG: 'ghcr.io/indigosour/rscraper_worker:1.0.$(Build.BuildId)'
 
 jobs:
   - job: build_and_push
@@ -25,14 +25,14 @@ jobs:
         displayName: 'Docker Login'
         inputs:
           command: login
-          containerRegistry: 'DockerHub_Connection'
-          repository: 'indigosour/rscraper_worker'
+          containerRegistry: 'GitHub_Connection'
 
       - task: Docker@2
         displayName: 'Build and Push Docker Image'
         inputs:
           command: buildAndPush
-          repository: 'indigosour/rscraper_worker'
+          containerRegistry: 'GitHub_Connection'
+          repository: 'ghcr.io/indigosour/rscraper_worker'
           dockerfile: '**/Dockerfile'
           tags: |
             $(Image_Tag)
